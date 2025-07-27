@@ -10,7 +10,10 @@ class CreateFollowablesTable extends Migration
     {
         Schema::create(config('follow.followables_table', 'followables'), function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger(config('follow.user_foreign_key', 'user_id'))->index()->comment('user_id');
+
+            // Вместо user_id делаем морфс follower (тип и id)
+            $table->morphs('follower');
+
             if (config('follow.uuids')) {
                 $table->uuidMorphs('followable');
             } else {

@@ -1,26 +1,14 @@
 <?php
-
 namespace Overtrue\LaravelFollow;
 
 use function config;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Str;
 use Overtrue\LaravelFollow\Events\Followed;
 use Overtrue\LaravelFollow\Events\Unfollowed;
 
-/**
- * @property int|string $followable_id;
- * @property int|string $followable_type;
- * @property int|string $user_id;
- *
- * @method HasMany of(Model $model)
- * @method HasMany followedBy(Model $model)
- * @method HasMany withType(string $type)
- */
 class Followable extends Model
 {
     protected $guarded = [];
@@ -44,8 +32,15 @@ class Followable extends Model
         parent::boot();
 
         self::saving(function ($follower) {
-            $userForeignKey = config('follow.user_foreign_key', 'user_id');
-            $follower->setAttribute($userForeignKey, $follower->{$userForeignKey} ?: auth()->id());
+            // Убираем user_id
+            // Вместо него ставим morphs 'follower'
+
+            if (! $follower->follower_id || ! $follower->follower_type) {
+                if (auth()->check()) {
+                    $follower->follower_id = auth()->id();
+                    $follower->follower_type = config('auth.providers.users.model');
+                }
+            }
 
             if (config('follow.uuids')) {
                 $follower->setAttribute($follower->getKeyName(), $follower->{$follower->getKeyName()} ?: (string) Str::orderedUuid());
@@ -53,19 +48,16 @@ class Followable extends Model
         });
     }
 
+    // Морфная связь на подписчика
+    public function follower(): MorphTo
+    {
+        return $this->morphTo('follower');
+    }
+
+    // Морфная связь на подписываемый объект
     public function followable(): MorphTo
     {
         return $this->morphTo();
-    }
-
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(config('auth.providers.users.model'), config('follow.user_foreign_key', 'user_id'));
-    }
-
-    public function follower(): BelongsTo
-    {
-        return $this->user();
     }
 
     public function scopeWithType(Builder $query, string $type): Builder
@@ -81,7 +73,8 @@ class Followable extends Model
 
     public function scopeFollowedBy(Builder $query, Model $follower): Builder
     {
-        return $query->where(config('follow.user_foreign_key', 'user_id'), $follower->getKey());
+        return $query->where('follower_id', $follower->getKey())
+            ->where('follower_type', $follower->getMorphClass());
     }
 
     public function scopeAccepted(Builder $query): Builder

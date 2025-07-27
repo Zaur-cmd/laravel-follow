@@ -31,11 +31,10 @@ trait Follower
             throw new InvalidArgumentException('Cannot follow yourself.');
         }
 
-        if (! in_array(Followable::class, class_uses($followable))) {
+        if (! in_array(\Overtrue\LaravelFollow\Traits\Followable::class, class_uses($followable))) {
             throw new InvalidArgumentException('The followable model must use the Followable trait.');
         }
 
-        /** @var \Illuminate\Database\Eloquent\Model|\Overtrue\LaravelFollow\Traits\Followable $followable */
         $isPending = $followable->needsToApproveFollowRequests() ?: false;
 
         $this->followings()->updateOrCreate([
@@ -50,7 +49,7 @@ trait Follower
 
     public function unfollow(Model $followable): void
     {
-        if (! in_array(Followable::class, class_uses($followable))) {
+        if (! in_array(\Overtrue\LaravelFollow\Traits\Followable::class, class_uses($followable))) {
             throw new InvalidArgumentException('The followable model must use the Followable trait.');
         }
 
@@ -64,7 +63,7 @@ trait Follower
 
     public function isFollowing(Model $followable): bool
     {
-        if (! in_array(Followable::class, class_uses($followable))) {
+        if (! in_array(\Overtrue\LaravelFollow\Traits\Followable::class, class_uses($followable))) {
             throw new InvalidArgumentException('The followable model must use the Followable trait.');
         }
 
@@ -81,7 +80,7 @@ trait Follower
 
     public function hasRequestedToFollow(Model $followable): bool
     {
-        if (! in_array(\Overtrue\LaravelFollow\Traits\Followable::class, \class_uses($followable))) {
+        if (! in_array(\Overtrue\LaravelFollow\Traits\Followable::class, class_uses($followable))) {
             throw new InvalidArgumentException('The followable model must use the Followable trait.');
         }
 
@@ -117,28 +116,28 @@ trait Follower
         return $this->followings()->notAccepted();
     }
 
+    /**
+     * Добавляет к коллекции/модели атрибуты статуса подписки.
+     *
+     * @param Model|array|Enumerable|Paginator|CursorPaginator|LazyCollection $followables
+     * @param callable|null $resolver
+     * @return mixed
+     */
     public function attachFollowStatus($followables, ?callable $resolver = null)
     {
         $returnFirst = false;
 
-        switch (true) {
-            case $followables instanceof Model:
-                $returnFirst = true;
-                $followables = collect([$followables]);
-                break;
-            case $followables instanceof LengthAwarePaginator:
-                $followables = $followables->getCollection();
-                break;
-            case $followables instanceof Paginator:
-            case $followables instanceof CursorPaginator:
-                $followables = collect($followables->items());
-                break;
-            case $followables instanceof LazyCollection:
-                $followables = collect(iterator_to_array($followables->getIterator()));
-                break;
-            case is_array($followables):
-                $followables = collect($followables);
-                break;
+        if ($followables instanceof Model) {
+            $returnFirst = true;
+            $followables = collect([$followables]);
+        } elseif ($followables instanceof LengthAwarePaginator) {
+            $followables = $followables->getCollection();
+        } elseif ($followables instanceof Paginator || $followables instanceof CursorPaginator) {
+            $followables = collect($followables->items());
+        } elseif ($followables instanceof LazyCollection) {
+            $followables = collect(iterator_to_array($followables->getIterator()));
+        } elseif (is_array($followables)) {
+            $followables = collect($followables);
         }
 
         abort_if(! ($followables instanceof Enumerable), 422, 'Invalid $followables type.');
@@ -149,7 +148,7 @@ trait Follower
             $resolver = $resolver ?? fn ($m) => $m;
             $followable = $resolver($followable);
 
-            if ($followable && in_array(Followable::class, class_uses($followable))) {
+            if ($followable && in_array(\Overtrue\LaravelFollow\Traits\Followable::class, class_uses($followable))) {
                 $item = $followed->where('followable_id', $followable->getKey())
                     ->where('followable_type', $followable->getMorphClass())
                     ->first();

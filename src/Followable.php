@@ -1,6 +1,7 @@
 <?php
-namespace App\Models;
+namespace Overtrue\LaravelFollow;
 
+use function config;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -31,8 +32,11 @@ class Followable extends Model
         parent::boot();
 
         self::saving(function ($model) {
-            // НЕ подставляем follower_id и follower_type из auth()
-            // Если они уже заданы, оставляем как есть
+            if (empty($model->follower_type) && auth()->check()) {
+                $model->follower_type = get_class(auth()->user());
+                $model->follower_id = auth()->id();
+            }
+
             if (config('follow.uuids')) {
                 $model->setAttribute(
                     $model->getKeyName(),

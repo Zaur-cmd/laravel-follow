@@ -101,7 +101,7 @@ trait Follower
          */
         return $this->hasMany(
             config('follow.followables_model', \Overtrue\LaravelFollow\Followable::class),
-            config('follow.user_foreign_key', 'user_id'),
+            'follower_id', // явно указать правильный внешний ключ
             $this->getKeyName()
         );
     }
